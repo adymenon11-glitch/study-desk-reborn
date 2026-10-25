@@ -45,7 +45,52 @@
     }
     li { margin: 12px 0; }
     #clock { font-size: 54px; margin: 20px 0; }
-  </style>
+  
+/* Weekly timetable and habit tracker */
+.day-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 15px 0;
+}
+.day-buttons button, .small-button {
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: #292345;
+  color: white;
+}
+.day-buttons button.selected {
+  background: #a99aff;
+  color: #11132a;
+}
+.activity, .habit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #303b59;
+}
+.activity label, .habit label {
+  flex: 1;
+}
+.activity.completed label {
+  text-decoration: line-through;
+  color: #9ba7c7;
+}
+.feature-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.feature-form input {
+  flex: 1;
+  min-width: 130px;
+}
+.feature-form button {
+  margin: 5px;
+}
+</style>
 </head>
 <body>
   <header>
@@ -93,15 +138,31 @@
     <ul id="tasks"></ul>
   </section>
 
-  <section id="habits">
-    <h2>Daily Habits</h2>
-    <p>We'll add your daily habit tracker here next.</p>
-  </section>
+  
+<section id="timetable">
+  <h2>Weekly Timetable</h2>
+  <p>Select a day and plan your study sessions.</p>
+  <div class="day-buttons" id="dayButtons"></div>
+  <div id="activityList"></div>
 
-  <section id="friend">
-    <h2>AI Study Friend</h2>
-    <p>We'll connect this to your Cloudflare Worker after the main site is working.</p>
-  </section>
+  <form class="feature-form" id="activityForm">
+    <input id="activityName" placeholder="Activity name" required>
+    <input id="activityStart" type="time" value="17:00" required>
+    <input id="activityEnd" type="time" value="17:30" required>
+    <button type="submit">Add activity</button>
+  </form>
+</section>
+
+<section id="habits">
+  <h2>Daily Habits</h2>
+  <p>Small steps, repeated consistently.</p>
+  <form class="feature-form" id="habitForm">
+    <input id="habitName" placeholder="e.g. Read for 15 minutes" required>
+    <button type="submit">Add habit</button>
+  </form>
+  <div id="habitList"></div>
+</section>
+
 
   <script>
     function showPage(id) {
@@ -167,6 +228,217 @@
       remaining = duration;
       updateClock();
     }
-  </script>
+  
+const weekDays = [
+  'Monday', 'Tuesday', 'Wednesday',
+  'Thursday', 'Friday', 'Saturday', 'Sunday'
+];
+
+let selectedDay = (new Date().getDay() + 6) % 7;
+let weeklyPlan = JSON.parse(
+  localStorage.getItem('studyDeskWeeklyPlan') || '{}'
+);
+let habits = JSON.parse(
+  localStorage.getItem('studyDeskHabits') || '{}'
+);
+
+function savePlan() {
+  localStorage.setItem(
+    'studyDeskWeeklyPlan',
+    JSON.stringify(weeklyPlan)
+  );
+}
+
+function saveHabits() {
+  localStorage.setItem(
+    'studyDeskHabits',
+    JSON.stringify(habits)
+  );
+}
+
+function getActivities() {
+  if (!weeklyPlan[selectedDay]) {
+    weeklyPlan[selectedDay] = [];
+  }
+  return weeklyPlan[selectedDay];
+}
+
+function renderTimetable() {
+  const buttons = document.getElementById('dayButtons');
+  const list = document.getElementById('activityList');
+  buttons.innerHTML = '';
+  list.innerHTML = '';
+
+  weekDays.forEach((day, index) => {
+    const button = document.createElement('button');
+    button.textContent = day.slice(0, 3);
+    button.className =
+      index === selectedDay ? 'selected' : '';
+
+    button.onclick = () => {
+      selectedDay = index;
+      renderTimetable();
+    };
+
+    buttons.appendChild(button);
+  });
+
+  const activities = getActivities().sort(
+    (a, b) => a.start.localeCompare(b.start)
+  );
+
+  if (!activities.length) {
+    list.textContent = 'No activities planned for this day yet.';
+  }
+
+  activities.forEach(activity => {
+    const row = document.createElement('div');
+    row.className =
+      'activity' + (activity.done ? ' completed' : '');
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = activity.done;
+    checkbox.setAttribute(
+      'aria-label',
+      'Complete ' + activity.name
+    );
+
+    checkbox.onchange = () => {
+      activity.done = checkbox.checked;
+      savePlan();
+      renderTimetable();
+    };
+
+    const label = document.createElement('label');
+    label.textContent =
+      activity.start + '–' + activity.end +
+      ' · ' + activity.name;
+
+    const remove = document.createElement('button');
+    remove.className = 'small-button';
+    remove.textContent = '×';
+    remove.setAttribute('aria-label', 'Delete activity');
+
+    remove.onclick = () => {
+      weeklyPlan[selectedDay] =
+        getActivities().filter(a => a.id !== activity.id);
+      savePlan();
+      renderTimetable();
+    };
+
+    row.append(checkbox, label, remove);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('activityForm')
+  .addEventListener('submit', event => {
+    event.preventDefault();
+
+    const name =
+      document.getElementById('activityName').value.trim();
+    const start =
+      document.getElementById('activityStart').value;
+    const end =
+      document.getElementById('activityEnd').value;
+
+    if (!name || end <= start) {
+      alert('Enter an activity and an end time after its start.');
+      return;
+    }
+
+    getActivities().push({
+      id: Date.now().toString(),
+      name,
+      start,
+      end,
+      done: false
+    });
+
+    savePlan();
+    event.target.reset();
+    document.getElementById('activityStart').value = '17:00';
+    document.getElementById('activityEnd').value = '17:30';
+    renderTimetable();
+  });
+
+function renderHabits() {
+  const list = document.getElementById('habitList');
+  list.innerHTML = '';
+
+  const today = new Date().toLocaleDateString('en-CA');
+
+  if (habits.date !== today) {
+    habits.date = today;
+    habits.items = (habits.items || []).map(h => ({
+      ...h,
+      done: false
+    }));
+    saveHabits();
+  }
+
+  habits.items = habits.items || [];
+
+  if (!habits.items.length) {
+    list.textContent = 'Add your first daily habit above.';
+  }
+
+  habits.items.forEach(habit => {
+    const row = document.createElement('div');
+    row.className = 'habit';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = habit.done;
+
+    checkbox.onchange = () => {
+      habit.done = checkbox.checked;
+      saveHabits();
+    };
+
+    const label = document.createElement('label');
+    label.textContent = habit.name;
+
+    const remove = document.createElement('button');
+    remove.className = 'small-button';
+    remove.textContent = 'Delete';
+
+    remove.onclick = () => {
+      habits.items = habits.items.filter(
+        h => h.id !== habit.id
+      );
+      saveHabits();
+      renderHabits();
+    };
+
+    row.append(checkbox, label, remove);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('habitForm')
+  .addEventListener('submit', event => {
+    event.preventDefault();
+
+    const input = document.getElementById('habitName');
+    const name = input.value.trim();
+    if (!name) return;
+
+    habits.items = habits.items || [];
+    habits.items.push({
+      id: Date.now().toString(),
+      name,
+      done: false
+    });
+
+    saveHabits();
+    input.value = '';
+    renderHabits();
+  });
+
+renderTimetable();
+renderHabits();
+</script>
 </body>
 </html>
