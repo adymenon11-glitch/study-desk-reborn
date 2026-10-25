@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Desk Reborn</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 30px;
+      background: #0b1020;
+      color: #edf1ff;
+      font-family: Arial, sans-serif;
+    }
+    header { margin-bottom: 28px; }
+    h1 { color: #a99aff; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; }
+    button {
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 10px;
+      background: #292345;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #51447f; }
+    section {
+      display: none;
+      margin-top: 22px;
+      padding: 22px;
+      background: #151d33;
+      border: 1px solid #303b59;
+      border-radius: 16px;
+    }
+    section.active { display: block; }
+    input {
+      padding: 11px;
+      margin: 5px;
+      border-radius: 8px;
+      border: 1px solid #526080;
+      background: #0b1020;
+      color: white;
+      max-width: 100%;
+    }
+    li { margin: 12px 0; }
+    #clock { font-size: 54px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✦ Study Desk</h1>
+    <p>Your personal study space. Plan smart, focus better.</p>
+  </header>
+
+  <nav class="tabs">
+    <button onclick="showPage('home')">Overview</button>
+    <button onclick="showPage('timetable')">Timetable</button>
+    <button onclick="showPage('focus')">Focus Timer</button>
+    <button onclick="showPage('checklist')">Checklist</button>
+    <button onclick="showPage('habits')">Habits</button>
+    <button onclick="showPage('friend')">Study Friend</button>
+  </nav>
+
+  <section id="home" class="active">
+    <h2>Welcome to your Study Desk 👋</h2>
+    <p>Your timetable, tasks, habits and focus tools will live here.</p>
+    <p>Choose a section above to get started.</p>
+  </section>
+
+  <section id="timetable">
+    <h2>Weekly Timetable</h2>
+    <p>We'll add your weekly schedule here next.</p>
+  </section>
+
+  <section id="focus">
+    <h2>Focus Timer</h2>
+    <div>
+      <button onclick="setTimer(25)">Focus · 25 min</button>
+      <button onclick="setTimer(5)">Short break · 5 min</button>
+      <button onclick="setTimer(15)">Long break · 15 min</button>
+    </div>
+    <div id="clock">25:00</div>
+    <button onclick="startTimer()">Start</button>
+    <button onclick="pauseTimer()">Pause</button>
+    <button onclick="resetTimer()">Reset</button>
+  </section>
+
+  <section id="checklist">
+    <h2>My Checklist</h2>
+    <input id="taskInput" placeholder="Enter a task">
+    <button onclick="addTask()">Add task</button>
+    <ul id="tasks"></ul>
+  </section>
+
+  <section id="habits">
+    <h2>Daily Habits</h2>
+    <p>We'll add your daily habit tracker here next.</p>
+  </section>
+
+  <section id="friend">
+    <h2>AI Study Friend</h2>
+    <p>We'll connect this to your Cloudflare Worker after the main site is working.</p>
+  </section>
+
+  <script>
+    function showPage(id) {
+      document.querySelectorAll('section').forEach(section => {
+        section.classList.toggle('active', section.id === id);
+      });
+    }
+
+    function addTask() {
+      const input = document.getElementById('taskInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const item = document.createElement('li');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      item.appendChild(checkbox);
+      item.appendChild(document.createTextNode(' ' + text));
+      document.getElementById('tasks').appendChild(item);
+      input.value = '';
+    }
+
+    let duration = 25 * 60;
+    let remaining = duration;
+    let interval = null;
+
+    function updateClock() {
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      document.getElementById('clock').textContent =
+        String(mins).padStart(2, '0') + ':' +
+        String(secs).padStart(2, '0');
+    }
+
+    function setTimer(minutes) {
+      clearInterval(interval);
+      interval = null;
+      duration = minutes * 60;
+      remaining = duration;
+      updateClock();
+    }
+
+    function startTimer() {
+      if (interval || remaining <= 0) return;
+      interval = setInterval(() => {
+        remaining--;
+        updateClock();
+        if (remaining <= 0) {
+          clearInterval(interval);
+          interval = null;
+          alert('Timer complete! Take a short break.');
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(interval);
+      interval = null;
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      remaining = duration;
+      updateClock();
+    }
+  </script>
+</body>
+</html>
